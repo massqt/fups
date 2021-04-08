@@ -41,6 +41,8 @@ class phpBBFUPS extends FUPSBase {
 			$this->regexps = array(
 				/* 'template_skin' => array(
 					'sid'                      => a regexp to extract the SID value from the login page <ucp.php?mode=login>
+					'form_token'               => a regexp to extract the form_token value from the login page <ucp.php?mode=login>
+					'creation_time'            => a regexp to extract the creation_time value from the login page <ucp.php?mode=login>
 					'board_title'              => a regexp to extract the board's title from the login page
 								<ucp.php?mode=login>
 					'login_success'            => a regexp to match the html of a successful-login page
@@ -130,6 +132,16 @@ class phpBBFUPS extends FUPSBase {
 					'forum_page_topicids'      => '(<a\\s+href="[^"]+-t(\\d+).html"\\s+class="topictitle">)',
 					'topic'                    => '(<div\\sid="page-body">.*<h2><a\\s+href="[^"]+-t\\d+\\.html">([^<]*)</a></h2>)s',
 					'forum_title'              => '(<div\\sid="page-body"[^>]*>.*<h2[^>]*><a\\s*[^>]+>([^<]+)</a></h2>)s',
+				),
+				'prosilver_3.3.2' => array(
+					'post_contents_ext'        => '(<div\\s+class="postbody">.*<h3[^>]*>\\s*(?:<img\\s+[^>]+>\\s+)?<a\\s*href="[^#]*#p(\\d+)">([^<]*)</a>\\s*</h3>.*<p\\s+class="author">\\s*<a\\s+[^>]*href="[^"]*"[^>]*>.*<strong>(<a[^>]*>)?(?:<span[^>]*>)?([^><]*)(?:</span>)?(</a>)?</strong>\\s*(?:&raquo;|»)\\s*</span><time\\sdatetime="[^"]+">([^<]*)</time>\\s*</p>\\s*<div\\s+class="content">(.*)</div>\\s*(?:<dl\\sclass="attachbox">.*</dl>\\s*)?(?:<div\\s+class="notice">.*</div>\\s*)?(?:<div\\s+[^>]*class="signature">(.*)</div>\\s*)?(<div\\s[^>]*>\\s*</div>\\s*){0,2}?</div>\\s*</div>\\s*<div\\s+class="back2top")Us',
+					'post_contents_ext_order'  => array(
+						'author'  => 4,
+						'title'   => 2,
+						'ts'      => 6,
+						'postid'  => 1,
+						'contents'=> 7,
+					),
 				),
 				'prosilver_3.2.x' => array(
 					'last_forum_page'          => '(<li\\s+class="active"><span>\\d+</span></li>\\s*</ul>)',
@@ -262,6 +274,10 @@ class phpBBFUPS extends FUPSBase {
 					'prev_page'                => '#()<span class="gensmall"><b>.*?<a href="viewtopic\\.php\\?t=(\\d+?).*start=(\\d+?)[^>]*>[^<]*</a>, <b>#U',
 					'next_page'                => '#()<span class="gensmall"><b>[^<]+<a href="viewtopic\\.php\\?t=(\\d+).*start=(\\d+)[^"]*">#',
 				),
+				'generic_new' => array(
+					'form_token'               => '#<input type="hidden" name="form_token" value="([^"]*)"#',
+					'creation_time'            => '#<input type="hidden" name="creation_time" value="([^"]*)"#',
+				),
 				'forexfactory' => array(
 					'sid'                      => '#SSIONURL = \'?(s\=)(.*&)|(.*)\';#',
 					'board_title'              => '#<title>(.*)</title>#',
@@ -273,6 +289,8 @@ class phpBBFUPS extends FUPSBase {
 	protected function check_do_login() {
 		# We don't want any existing authentication token to mess with the process below. This does matter (tested).
 		if ($this->was_chained) @unlink($this->cookie_filename);
+
+		$creation_time = $form_token = $sid = '';
 
 		# Do this first bit so that we set old_version if necessary regardless of whether or not the user supplied credentials.
 
@@ -322,6 +340,17 @@ class phpBBFUPS extends FUPSBase {
 				$this->old_version = true;
 			}
 		}
+		if (!$is_old) {
+			if ($this->skins_preg_match('form_token', $html, $matches)) {
+				$form_token = $matches[1];
+			}
+			if ($this->skins_preg_match('creation_time', $html, $matches)) {
+				$creation_time = $matches[1];
+			}
+			if ($form_token && $creation_time) {
+				if ($this->dbg) $this->write_err('form_token: "'.$form_token.'"; creation_time: "'.$creation_time.'".');
+			}
+		}
 
 		# Do the rest conditionally on the user having supplied credentials.
 		if (!empty($this->settings['login_user']) || !empty($this->settings['login_password'])) {
@@ -345,6 +374,8 @@ class phpBBFUPS extends FUPSBase {
 				'viewonline' => '',
 				'redirect' => 'index.php',
 				'sid' => $sid,
+				'form_token' => $form_token,
+				'creation_time' => $creation_time,
 				'login' => 'true',
 			);
 			$opts = array(

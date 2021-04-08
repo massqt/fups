@@ -103,6 +103,12 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2020-12-12
+					<ul>
+						<li>Added an updated 'post_contents_ext' regular expression to support the scraping of forum threads for phpBB 3.3.2.</li>
+						<li>Added support for new phpBB login form fields, namely 'form_token' and 'creation_time'.</li>
+					</ul>
+				</li>
 				<li>2019-07-02
 					<ul>
 						<li>Improved XenForo support, by adjusting the regular expressions that detect posts in search listings, and by adding support for stripping a Vietnamese word from international datetimes.</li>
